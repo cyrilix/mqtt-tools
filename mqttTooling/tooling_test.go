@@ -1,66 +1,15 @@
 package mqttTooling
 
 import (
+	"github.com/cyrilix/mqtt-tools/mqttTooling/mqtttest"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"reflect"
 	"testing"
 )
 
-type MqttMsg struct {
-	topic    string
-	qos      byte
-	retained bool
-	payload  interface{}
-}
-
-type ClientMock struct {
-	PublishChan chan MqttMsg
-}
-
-func (c ClientMock) IsConnected() bool {
-	panic("implement me")
-}
-
-func (c ClientMock) IsConnectionOpen() bool {
-	panic("implement me")
-}
-
-func (c ClientMock) Connect() mqtt.Token {
-	panic("implement me")
-}
-
-func (c ClientMock) Disconnect(quiesce uint) {
-	panic("implement me")
-}
-
-func (c ClientMock) Publish(topic string, qos byte, retained bool, payload interface{}) mqtt.Token {
-	c.PublishChan <- MqttMsg{topic, qos, retained, payload}
-	return &mqtt.DummyToken{}
-}
-
-func (c ClientMock) Subscribe(topic string, qos byte, callback mqtt.MessageHandler) mqtt.Token {
-	panic("implement me")
-}
-
-func (c ClientMock) SubscribeMultiple(filters map[string]byte, callback mqtt.MessageHandler) mqtt.Token {
-	panic("implement me")
-}
-
-func (c ClientMock) Unsubscribe(topics ...string) mqtt.Token {
-	panic("implement me")
-}
-
-func (c ClientMock) AddRoute(topic string, callback mqtt.MessageHandler) {
-	panic("implement me")
-}
-
-func (c ClientMock) OptionsReader() mqtt.ClientOptionsReader {
-	panic("implement me")
-}
-
 func TestMqttPublisher_Publish(t *testing.T) {
-	client := ClientMock{
-		PublishChan: make(chan MqttMsg, 1),
+	client := mqtttest.ClientMock{
+		PublishChan: make(chan mqtttest.MqttMsg, 1),
 	}
 	defer close(client.PublishChan)
 
@@ -96,13 +45,12 @@ func TestMqttPublisher_Publish(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Publish() error = %v, wantErr %v", err, tt.wantErr)
 			} else if !tt.wantErr {
-				expectedMsg := MqttMsg{tt.args.topic, byte(0), false, tt.args.payload}
+				expectedMsg := mqtttest.MqttMsg{Topic: tt.args.topic, Qos: byte(0), Payload: tt.args.payload}
 				msg := <-client.PublishChan
 				if !reflect.DeepEqual(msg, expectedMsg) {
 					t.Errorf("bad message published: '%v', want '%v'", msg, expectedMsg)
 				}
 			}
-
 		})
 	}
 }
