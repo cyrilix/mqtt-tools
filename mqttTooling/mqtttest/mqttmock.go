@@ -2,6 +2,27 @@ package mqtttest
 
 import mqtt "github.com/eclipse/paho.mqtt.golang"
 
+func NewPublisherMock() *PublisherMock {
+	return &PublisherMock{make(chan MqttMsg, 1)}
+}
+
+type PublisherMock struct {
+	PublishChan chan MqttMsg
+}
+
+func (p PublisherMock) Close() error {
+	close(p.PublishChan)
+	return nil
+}
+
+func (p PublisherMock) Publish(topic string, payload []byte) error {
+	p.PublishChan <- MqttMsg{
+		Topic:   topic,
+		Payload: payload,
+	}
+	return nil
+}
+
 type MqttMsg struct {
 	Topic    string
 	Qos      byte

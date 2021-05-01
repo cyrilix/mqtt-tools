@@ -61,3 +61,44 @@ func TestClientMock_Publish(t *testing.T) {
 		})
 	}
 }
+
+func TestPublisherMock_Publish(t *testing.T) {
+	p := NewPublisherMock()
+	defer func() {
+		if err := p.Close(); err != nil {
+			t.Errorf("unable to close instance: %v", err)
+		}
+	}()
+
+	type args struct {
+		topic   string
+		payload []byte
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"simple test",
+			args{
+				"topicName",
+				[]byte("msg content"),
+			},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := p.Publish(tt.args.topic, tt.args.payload); (err != nil) != tt.wantErr {
+				t.Errorf("Publish() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			msgPublished := <-p.PublishChan
+			if msgPublished.Topic != tt.args.topic {
+				t.Errorf("msg published to bad topic '%v', want '%v'", msgPublished.Topic, tt.args.topic)
+			}
+			if string(msgPublished.Payload.([]byte)) != string(tt.args.payload) {
+				t.Errorf("msg published with bad payload '%v', want '%v'", msgPublished.Payload, tt.args.payload)
+			}
+		})
+	}
+}
