@@ -1,9 +1,12 @@
 package mqtttest
 
 import (
+	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	log "github.com/sirupsen/logrus"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestClientMock_Publish(t *testing.T) {
@@ -62,42 +65,47 @@ func TestClientMock_Publish(t *testing.T) {
 	}
 }
 
-func TestPublisherMock_Publish(t *testing.T) {
-	p := NewPublisherMock()
-	defer func() {
-		if err := p.Close(); err != nil {
-			t.Errorf("unable to close instance: %v", err)
-		}
-	}()
-
+func TestPublisherMock_PublishSubscribe(t *testing.T) {
+	subscribeResponse := make(chan []byte)
+	type fields struct {
+	}
 	type args struct {
-		topic   string
-		payload []byte
+		topic string
+		mh    mqtt.MessageHandler
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name   string
+		fields fields
+		args   args
 	}{
-		{"simple test",
-			args{
-				"topicName",
-				[]byte("msg content"),
+		{
+			name:   "default",
+			fields: fields{},
+			args: args{
+				topic: "topic1",
+				mh: func(client mqtt.Client, message mqtt.Message) {
+					log.Info("OK")
+					subscribeResponse <- message.Payload()
+				},
 			},
-			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := p.Publish(tt.args.topic, tt.args.payload); (err != nil) != tt.wantErr {
-				t.Errorf("Publish() error = %v, wantErr %v", err, tt.wantErr)
+			p := NewPubSub()
+			p.Subscribe(tt.args.topic, tt.args.mh)
+			payloadPublished := []byte(fmt.Sprintf("message test for topic %s", tt.args.topic))
+			err := p.Publish(tt.args.topic, payloadPublished)
+			if err != nil {
+				t.Errorf("unexepected error: %v", err)
 			}
-			msgPublished := <-p.PublishChan
-			if msgPublished.Topic != tt.args.topic {
-				t.Errorf("msg published to bad topic '%v', want '%v'", msgPublished.Topic, tt.args.topic)
-			}
-			if string(msgPublished.Payload.([]byte)) != string(tt.args.payload) {
-				t.Errorf("msg published with bad payload '%v', want '%v'", msgPublished.Payload, tt.args.payload)
+			select {
+			case payload := <-subscribeResponse:
+				if string(payload) != string(payloadPublished) {
+					t.Errorf("invalid message received: %s, want %s", string(payload), string(payloadPublished))
+				}
+			case <-time.NewTimer(100 * time.Millisecond).C:
+				t.Errorf("no msg received")
 			}
 		})
 	}

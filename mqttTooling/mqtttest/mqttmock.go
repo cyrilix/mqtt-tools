@@ -1,24 +1,50 @@
 package mqtttest
 
-import mqtt "github.com/eclipse/paho.mqtt.golang"
+import (
+	"github.com/cyrilix/mqtt-tools/mqttTooling"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
+)
 
-func NewPublisherMock() *PublisherMock {
-	return &PublisherMock{make(chan MqttMsg, 1)}
+func NewPubSub() mqttTooling.MQTTPubSub {
+	return &PubSubMock{make(map[string]chan MqttMsg, 1), make(chan interface{})}
 }
 
-type PublisherMock struct {
-	PublishChan chan MqttMsg
+type PubSubMock struct {
+	topicChan map[string]chan MqttMsg
+	cancel    chan interface{}
 }
 
-func (p PublisherMock) Close() error {
-	close(p.PublishChan)
+func (p *PubSubMock) Subscribe(topic string, mh mqtt.MessageHandler) {
+	if _, ok := p.topicChan[topic]; !ok {
+		p.topicChan[topic] = make(chan MqttMsg)
+	}
+	go func() {
+		var msg MqttMsg
+		for {
+			select {
+			case msg = <-p.topicChan[topic]:
+				mh(nil, &MessageMock{payload: msg.Payload.([]byte), topic: msg.Topic, qos: msg.Qos, retained: msg.Retained})
+			case <-p.cancel:
+				return
+			}
+		}
+	}()
+}
+
+func (p *PubSubMock) Close() error {
+	p.cancel <- struct{}{}
 	return nil
 }
 
-func (p PublisherMock) Publish(topic string, payload []byte) error {
-	p.PublishChan <- MqttMsg{
-		Topic:   topic,
-		Payload: payload,
+func (p *PubSubMock) Publish(topic string, payload []byte) error {
+	if _, ok := p.topicChan[topic]; !ok {
+		p.topicChan[topic] = make(chan MqttMsg)
+	}
+	p.topicChan[topic] <- MqttMsg{
+		Topic:    topic,
+		Qos:      0,
+		Retained: false,
+		Payload:  payload,
 	}
 	return nil
 }
@@ -73,4 +99,40 @@ func (c ClientMock) AddRoute(topic string, callback mqtt.MessageHandler) {
 
 func (c ClientMock) OptionsReader() mqtt.ClientOptionsReader {
 	panic("implement me")
+}
+
+type MessageMock struct {
+	duplicate bool
+	qos       byte
+	retained  bool
+	topic     string
+	messageId uint16
+	payload   []byte
+}
+
+func (m *MessageMock) Duplicate() bool {
+	return m.duplicate
+}
+
+func (m *MessageMock) Qos() byte {
+	return m.qos
+}
+
+func (m *MessageMock) Retained() bool {
+	return m.retained
+}
+
+func (m *MessageMock) Topic() string {
+	return m.topic
+}
+
+func (m *MessageMock) MessageID() uint16 {
+	return m.messageId
+}
+
+func (m *MessageMock) Payload() []byte {
+	return m.payload
+}
+
+func (m *MessageMock) Ack() {
 }

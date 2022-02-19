@@ -8,6 +8,7 @@ import (
 	"fmt"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"io/ioutil"
 	"os"
 	"time"
@@ -129,7 +130,22 @@ type Publisher interface {
 	Publish(topic string, payload []byte) error
 }
 
+type Subscriber interface {
+	Subscribe(topic string, mh MQTT.MessageHandler)
+}
+
+type MQTTPubSub interface {
+	Publisher
+	Subscriber
+	io.Closer
+}
+
+// NewMqttPublisher is deprecated. Use NewMQTTPubSub
 func NewMqttPublisher(client MQTT.Client) *MqttPublisher {
+	return &MqttPublisher{client: client}
+}
+
+func NewMQTTPubSub(client MQTT.Client) MQTTPubSub {
 	return &MqttPublisher{client: client}
 }
 
@@ -145,5 +161,19 @@ func (m *MqttPublisher) Publish(topic string, payload []byte) error {
 	if err := token.Error(); err != nil {
 		return fmt.Errorf("unable to publish to topic: %v", err)
 	}
+	return nil
+}
+
+// Subscribe register func to execute on message
+func (m *MqttPublisher) Subscribe(topic string, callback MQTT.MessageHandler) {
+	tokenResp := m.client.Subscribe(topic, m.qos, callback)
+	if tokenResp.Error() != nil {
+		log.Fatalf("%+v", tokenResp.Error())
+	}
+}
+
+// Close connection to broker
+func (m *MqttPublisher) Close() error {
+	m.client.Disconnect(500)
 	return nil
 }
