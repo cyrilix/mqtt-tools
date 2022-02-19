@@ -3,7 +3,7 @@ module github.com/cyrilix/mqtt-tools
 go 1.17
 
 require (
-	github.com/eclipse/paho.mqtt.golang v1.3.3
+	github.com/eclipse/paho.mqtt.golang v1.3.5
 	go.uber.org/zap v1.21.0
 )
 
