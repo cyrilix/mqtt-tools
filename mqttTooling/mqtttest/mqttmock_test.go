@@ -3,7 +3,6 @@ package mqtttest
 import (
 	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	log "github.com/sirupsen/logrus"
 	"reflect"
 	"testing"
 	"time"
@@ -84,7 +83,6 @@ func TestPublisherMock_PublishSubscribe(t *testing.T) {
 			args: args{
 				topic: "topic1",
 				mh: func(client mqtt.Client, message mqtt.Message) {
-					log.Info("OK")
 					subscribeResponse <- message.Payload()
 				},
 			},

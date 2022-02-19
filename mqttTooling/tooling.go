@@ -7,7 +7,7 @@ import (
 	"flag"
 	"fmt"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
 	"os"
@@ -22,7 +22,7 @@ func newTlsConfig(cafile string, certfile string, keyfile string) (*tls.Config, 
 
 	cert, err := tls.LoadX509KeyPair(certfile, keyfile)
 	if err != nil {
-		log.Panicf("unable to load certificate files: %v", err)
+		zap.S().Panicf("unable to load certificate files: %v", err)
 	}
 	cacert, err := ioutil.ReadFile(cafile)
 	if err != nil {
@@ -57,7 +57,7 @@ func Connect(params *MqttCliParameters) (MQTT.Client, error) {
 			fmt.Printf("MSG: %s\n", msg.Payload())
 		})
 	if params.HasTLSConfig() {
-		log.Printf("enable x509 authentication")
+		zap.S().Info("mqtt: enable x509 authentication")
 		tlsConfig, err := params.TLSConfig()
 		if err != nil {
 			return nil, fmt.Errorf("unable to configure tls parameters: %v", err)
@@ -92,7 +92,7 @@ func (p *MqttCliParameters) HasTLSConfig() bool {
 
 func (p *MqttCliParameters) TLSConfig() (*tls.Config, error) {
 	if p.HasTLSConfig() {
-		log.Printf("enable x509 authentication")
+		zap.S().Info("mqtt: enable x509 authentication")
 		tlsConfig, err := newTlsConfig(p.CAFile, p.CertFile, p.KeyFile)
 		if err != nil {
 			return nil, fmt.Errorf("unable to configure tls parameters: %v", err)
@@ -168,7 +168,7 @@ func (m *MqttPublisher) Publish(topic string, payload []byte) error {
 func (m *MqttPublisher) Subscribe(topic string, callback MQTT.MessageHandler) {
 	tokenResp := m.client.Subscribe(topic, m.qos, callback)
 	if tokenResp.Error() != nil {
-		log.Fatalf("%+v", tokenResp.Error())
+		zap.S().Fatalf("%+v", tokenResp.Error())
 	}
 }
 
