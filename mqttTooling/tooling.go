@@ -112,7 +112,7 @@ func InitMqttFlagSet(parameters *MqttCliParameters) {
 	flag.StringVar(&parameters.ClientId, "mqtt-client-id", parameters.ClientId, "Mqtt client id, use MQTT_CLIENT_ID env if args not set")
 	flag.IntVar(&parameters.Qos, "mqtt-qos", parameters.Qos, "Qos to pusblish message, use MQTT_QOS env if arg not set")
 	flag.BoolVar(&parameters.Retain, "mqtt-retain", parameters.Retain, "Retain mqtt message, if not set, true if MQTT_RETAIN env variable is set")
-	flag.BoolVar(&parameters.Clean, "mqtt-clean", parameters.Retain, "set the \"Clean session\" flag in the connect message")
+	flag.BoolVar(&parameters.Clean, "mqtt-clean", parameters.Clean, "set the \"Clean session\" flag in the connect message")
 	flag.StringVar(&parameters.CAFile, "mqtt-cafile", "", "CA pem file for x509 authentication")
 	flag.StringVar(&parameters.CertFile, "mqtt-certfile", "", "X509 certificate pem file for x509 authentication")
 	flag.StringVar(&parameters.KeyFile, "mqtt-keyfile", "", "rsa key pem file for x509 authentication")
