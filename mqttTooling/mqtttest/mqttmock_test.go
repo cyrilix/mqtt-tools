@@ -2,6 +2,7 @@ package mqtttest
 
 import (
 	"fmt"
+	"github.com/cyrilix/mqtt-tools/mqttTooling"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"reflect"
 	"testing"
@@ -13,7 +14,7 @@ func TestClientMock_Publish(t *testing.T) {
 		PublishChan chan MqttMsg
 	}
 	type args struct {
-		topic    string
+		topic    mqttTooling.Topic
 		qos      byte
 		retained bool
 		payload  interface{}
@@ -43,7 +44,7 @@ func TestClientMock_Publish(t *testing.T) {
 			c := ClientMock{
 				PublishChan: tt.fields.PublishChan,
 			}
-			if got := c.Publish(tt.args.topic, tt.args.qos, tt.args.retained, tt.args.payload); !reflect.DeepEqual(got, tt.want) {
+			if got := c.Publish(string(tt.args.topic), tt.args.qos, tt.args.retained, tt.args.payload); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Publish() = %v, want %v", got, tt.want)
 			}
 			msgPublished := <-tt.fields.PublishChan
@@ -69,7 +70,7 @@ func TestPublisherMock_PublishSubscribe(t *testing.T) {
 	type fields struct {
 	}
 	type args struct {
-		topic string
+		topic mqttTooling.Topic
 		mh    mqtt.MessageHandler
 	}
 	tests := []struct {

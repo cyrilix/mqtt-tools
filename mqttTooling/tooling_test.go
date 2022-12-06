@@ -1,10 +1,34 @@
 package mqttTooling
 
 import (
+	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"reflect"
 	"testing"
 )
+
+func TestTopicFormatter_Apply(t *testing.T) {
+	type args struct {
+		room  string
+		topic string
+	}
+	tests := []struct {
+		name string
+		t    TopicFormatter
+		args args
+		want Topic
+	}{
+		{name: "default", t: TopicFormatter("room/%s/topic/%s"), args: args{"bedroom", "state"}, want: "room/bedroom/topic/state"},
+		{name: "setter", t: TopicFormatter("room/%s/topic/%s/set"), args: args{"bedroom", "state"}, want: "room/bedroom/topic/state/set"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.t.Apply(tt.args.room, tt.args.topic); got != tt.want {
+				t.Errorf("Apply() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
 func TestMqttPublisher_Publish(t *testing.T) {
 	client := ClientMock{
@@ -16,7 +40,7 @@ func TestMqttPublisher_Publish(t *testing.T) {
 		client mqtt.Client
 	}
 	type args struct {
-		topic   string
+		topic   Topic
 		payload []byte
 	}
 	tests := []struct {
@@ -75,7 +99,12 @@ func (c ClientMock) Disconnect(quiesce uint) {
 }
 
 func (c ClientMock) Publish(topic string, qos byte, retained bool, payload interface{}) mqtt.Token {
-	c.PublishChan <- MqttMsg{topic, qos, retained, payload}
+	c.PublishChan <- MqttMsg{Topic(topic), qos, retained, payload}
+	return &mqtt.DummyToken{}
+}
+
+func (c ClientMock) PublishAsString(topic Topic, qos byte, retained bool, payload fmt.Stringer) mqtt.Token {
+	c.PublishChan <- MqttMsg{topic, qos, retained, []byte(payload.String())}
 	return &mqtt.DummyToken{}
 }
 
@@ -100,7 +129,7 @@ func (c ClientMock) OptionsReader() mqtt.ClientOptionsReader {
 }
 
 type MqttMsg struct {
-	Topic    string
+	Topic    Topic
 	Qos      byte
 	Retained bool
 	Payload  interface{}

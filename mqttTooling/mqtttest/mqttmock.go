@@ -1,20 +1,21 @@
 package mqtttest
 
 import (
+	"fmt"
 	"github.com/cyrilix/mqtt-tools/mqttTooling"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 func NewPubSub() mqttTooling.MQTTPubSub {
-	return &PubSubMock{make(map[string]chan MqttMsg, 1), make(chan interface{})}
+	return &PubSubMock{make(map[mqttTooling.Topic]chan MqttMsg, 1), make(chan interface{})}
 }
 
 type PubSubMock struct {
-	topicChan map[string]chan MqttMsg
+	topicChan map[mqttTooling.Topic]chan MqttMsg
 	cancel    chan interface{}
 }
 
-func (p *PubSubMock) Subscribe(topic string, mh mqtt.MessageHandler) {
+func (p *PubSubMock) Subscribe(topic mqttTooling.Topic, mh mqtt.MessageHandler) {
 	if _, ok := p.topicChan[topic]; !ok {
 		p.topicChan[topic] = make(chan MqttMsg)
 	}
@@ -23,7 +24,7 @@ func (p *PubSubMock) Subscribe(topic string, mh mqtt.MessageHandler) {
 		for {
 			select {
 			case msg = <-p.topicChan[topic]:
-				mh(nil, &MessageMock{payload: msg.Payload.([]byte), topic: msg.Topic, qos: msg.Qos, retained: msg.Retained})
+				mh(nil, &MessageMock{payload: msg.Payload.([]byte), topic: string(msg.Topic), qos: msg.Qos, retained: msg.Retained})
 			case <-p.cancel:
 				return
 			}
@@ -36,7 +37,11 @@ func (p *PubSubMock) Close() error {
 	return nil
 }
 
-func (p *PubSubMock) Publish(topic string, payload []byte) error {
+func (p *PubSubMock) PublishAsString(topic mqttTooling.Topic, payload fmt.Stringer) error {
+	return p.Publish(topic, []byte(payload.String()))
+}
+
+func (p *PubSubMock) Publish(topic mqttTooling.Topic, payload []byte) error {
 	if _, ok := p.topicChan[topic]; !ok {
 		p.topicChan[topic] = make(chan MqttMsg)
 	}
@@ -50,7 +55,7 @@ func (p *PubSubMock) Publish(topic string, payload []byte) error {
 }
 
 type MqttMsg struct {
-	Topic    string
+	Topic    mqttTooling.Topic
 	Qos      byte
 	Retained bool
 	Payload  interface{}
@@ -77,7 +82,7 @@ func (c ClientMock) Disconnect(quiesce uint) {
 }
 
 func (c ClientMock) Publish(topic string, qos byte, retained bool, payload interface{}) mqtt.Token {
-	c.PublishChan <- MqttMsg{topic, qos, retained, payload}
+	c.PublishChan <- MqttMsg{mqttTooling.Topic(topic), qos, retained, payload}
 	return &mqtt.DummyToken{}
 }
 
